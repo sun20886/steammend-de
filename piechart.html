@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js">
+  </script>
+  <title>test2</title>
+</head>
+<body>
+  <canvas id="doughnutChart" style="width:100%;max-width:700px"></canvas>
+  <script>
+new Chart("doughnutChart", {
+  type: "doughnut",
+  data: {
+    labels: {{ label | tojson }},
+  datasets: [{
+    label: 'My First Dataset',
+    data: {{ data | tojson }},
+    backgroundColor: [
+      'rgb(255, 99, 132)',
+      'rgb(54, 162, 235)',
+      'rgb(255, 205, 86)',
+      'rgb(153, 102, 255)',
+      'rgb(201, 203, 207)',
+      'rgb(255, 159, 64)',
+      'rgb(75, 192, 192)',
+      'rgb(255, 153, 0)',
+      'rgb(255, 0, 102)',
+      'rgb(153, 102, 204)'
+    ],
+    hoverOffset: 4
+  }]
+  }
+});
+  </script>
+</body>
+</html>
