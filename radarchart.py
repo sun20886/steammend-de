@@ -29,7 +29,7 @@ def get_playedgames_by_steamid(steamid64):
     return app_list
 
 
-# game인 것들만 app detail 받아오기 
+# game인 것들만 app detail 받아오기
 # get_playedgame_details에서 중첩 함수로 사용
 def get_appdetail_by_appid(appid):
 
