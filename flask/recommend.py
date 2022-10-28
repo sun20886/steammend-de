@@ -30,38 +30,17 @@ def preprocessing_appdetail(detail_data):
         "short_description": detail_data['short_description'],
         "supported_languages": detail_data['supported_languages'],
         "header_image": detail_data['header_image'],
-        # "pc_requirements": detail_data['pc_requirements'],
-        # "mac_requirements": detail_data['mac_requirements'],
-        # "linux_requirements": detail_data['linux_requirements'],
         "publishers": detail_data['publishers'],
+        "tags": list(tags),
         "categories": detail_data['categories'],
         "genres": detail_data['genres'],
-        "release_date": detail_data['release_date'],
-        "tags": list(tags)
+        "release_date": detail_data['release_date']
     }
 
     app_detail['pc_requirements.minimum'] = detail_data['pc_requirements'][
-        'minimum'] if "minimum" in detail_data['pc_requirements'].keys() else None
+        'minimum'] if "minimum" in detail_data['pc_requirements'].keys() else []
     app_detail['pc_requirements.recommended'] = detail_data['pc_requirements'][
-        'recommended'] if "recommended" in detail_data['pc_requirements'].keys() else None
-
-    if type(detail_data['mac_requirements']) == dict:
-        app_detail['mac_requirements.minimum'] = detail_data['mac_requirements'][
-            'minimum'] if "minimum" in detail_data['mac_requirements'].keys() else None
-        app_detail['mac_requirements.recommended'] = detail_data['mac_requirements'][
-            'recommended'] if "recommended" in detail_data['mac_requirements'].keys() else None
-    else:
-        app_detail['mac_requirements.minimum'] = None
-        app_detail['mac_requirements.recommended'] = None
-
-    if type(detail_data['linux_requirements']) == dict:
-        app_detail['linux_requirements.minimum'] = detail_data['linux_requirements'][
-            'minimum'] if "minimum" in detail_data['linux_requirements'].keys() else None
-        app_detail['linux_requirements.recommended'] = detail_data['linux_requirements'][
-            'recommended'] if "recommended" in detail_data['linux_requirements'].keys() else None
-    else:
-        app_detail['linux_requirements.minimum'] = None
-        app_detail['linux_requirements.recommended'] = None
+        'recommended'] if "recommended" in detail_data['pc_requirements'].keys() else []
 
     if "price_overview" in detail_data.keys():
         app_detail['price_overview.currency'] = detail_data['price_overview'][
@@ -95,7 +74,6 @@ def caculate_cosine(appid):
 
     if appid not in df['_id']:
         detail_data = steam_API_data.get_appdetail_by_appid(appid)
-        print(detail_data)
         new_app = preprocessing_appdetail(detail_data)
         # new_app = get_appdetail_by_appid(appid)
 
