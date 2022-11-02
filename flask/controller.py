@@ -1,6 +1,6 @@
 import recommend
 import steam_API_data
-import elk
+import dao
 
 
 def get_recommendations(appid):
@@ -11,9 +11,21 @@ def get_played_games(steamid64):
     return steam_API_data.get_playedgame_details(steamid64)
 
 
-def get_all_top_seller_games():
-    return elk.get_all_top_seller_games()
+def get_all_games():
+    return dao.get_all_games()
+
+
+def get_free_games():
+    return dao.get_new_games()
+
+
+def get_sale_games():
+    return dao.get_sale_games()
+
+
+def get_new_games():
+    return dao.get_new_games()
 
 
 def search_games_by_keyword(keyword):
-    return elk.search_games_by_keyword(keyword)
+    return dao.search_games_by_keyword(keyword)

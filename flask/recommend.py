@@ -1,18 +1,13 @@
 import pandas as pd
-import numpy as np
-import json
-
 from sklearn.metrics.pairwise import linear_kernel  # for cosine similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
-from urllib.request import urlopen
-from http.client import HTTPResponse
 
 from pandasticsearch import Select
 
 import steam_API_data
-import elk
+import dao
 
-df = Select.from_dict(elk.get_all_top_seller_games()).to_pandas()
+df = Select.from_dict(dao.get_all_games()).to_pandas()
 
 
 def preprocessing_appdetail(detail_data):
@@ -62,9 +57,6 @@ def preprocessing_appdetail(detail_data):
         app_detail['price_overview.initial_formatted'] = None
         app_detail['price_overview.final_formatted'] = None
 
-        # app_detail[''] = detail_data[''][''] if "" in detail_data[''].keys() else None
-        # app_detail[''] = detail_data[''][''] if "" in detail_data[''].keys() else None
-
     app_detail['recommendations'] = detail_data['recommendations'] if "recommendations" in detail_data.keys() else None
 
     return app_detail
@@ -75,7 +67,6 @@ def caculate_cosine(appid):
     if appid not in df['_id']:
         detail_data = steam_API_data.get_appdetail_by_appid(appid)
         new_app = preprocessing_appdetail(detail_data)
-        # new_app = get_appdetail_by_appid(appid)
 
     df.loc[len(df)] = new_app
 
