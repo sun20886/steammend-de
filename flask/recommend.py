@@ -3,13 +3,12 @@ from sklearn.metrics.pairwise import linear_kernel  # for cosine similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 from pandasticsearch import Select
-
-import steam_API_data
+import json
 import dao
 
-df = Select.from_dict(dao.get_all_games()).to_pandas()
 
 
+#elk에 없는 게임일 때 steamAPI로 디테일을 받아와서 데이터 프레임에 맞게 전처리
 def preprocessing_appdetail(detail_data):
     tags = set()
     for i in detail_data['categories']:
@@ -62,11 +61,10 @@ def preprocessing_appdetail(detail_data):
     return app_detail
 
 
-def caculate_cosine(appid):
-
-    if appid not in df['_id']:
-        detail_data = steam_API_data.get_appdetail_by_appid(appid)
-        new_app = preprocessing_appdetail(detail_data)
+def caculate_cosine(game, df):
+    
+    if game['steam_appid'] not in df['_id']:
+        new_app = preprocessing_appdetail(game)
 
     df.loc[len(df)] = new_app
 
@@ -87,23 +85,71 @@ def caculate_cosine(appid):
     return cosine_sim, indices
 
 
-def get_recommendations(appid):
 
-    cosine_sim, indices = caculate_cosine(appid)
+#비슷한 게임을 계산하여 반환
+def get_recommendations(game, type, df):
+    
+    cosine_sim, indices = caculate_cosine(game, df)
 
-    idx = indices[appid]
+    idx = indices[game['steam_appid']]
 
-    # Get the pairwsie similarity scores of all movies with that movie
+    # Get the pairwsie similarity scores of all games with that movie
     sim_scores = list(enumerate(cosine_sim[idx]))
 
-    # Sort the movies based on the similarity scores
+    # Sort the games based on the similarity scores
     sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
 
-    # Get the scores of the 5 most similar movies
-    sim_scores = sim_scores[1:6]
+
+    # Get the scores of the 5 most similar games
+    if type=="main":
+        sim_scores=sim_scores[1:2]
+    
+    elif type=="mydata":
+        sim_scores = sim_scores[1:6]
 
     # Get the movie indices
     appid_indices = [i[0] for i in sim_scores]
 
-    # Return the top 10 most similar movies
-    return df.iloc[appid_indices]
+    result=df.iloc[appid_indices, 2:]
+    result_string=result.to_json(force_ascii=False, orient = 'records')
+    result_json = json.loads(result_string)
+
+    return result_json
+
+
+#메인화면에 보여줄 추천 게임을 반환하는 함수
+def get_main_recomm(games):
+
+    df = Select.from_dict(dao.get_all_games_for_recomm()).to_pandas()
+    print(len(df['steam_appid']))
+
+    main_recommended_games={}
+
+    for game in games:
+        recommended=get_recommendations(games[game], "main", df)
+        temp={
+            "name":games[game]['name'],
+            "recommend":recommended[0]
+        }
+        main_recommended_games[game]=temp
+
+    return main_recommended_games
+
+
+
+#My Page의 My Recommend에서 보여줄 추천 게임들을 반환하는 함수
+def get_my_recomm(games):
+
+    df = Select.from_dict(dao.get_all_games_for_recomm()).to_pandas()
+
+    mydata_recommended_games={}
+
+    for game in games:
+        recommended=get_recommendations(games[game], "mydata",df)
+        temp={
+            "name":games[game]['name'],
+            "recommend_list":recommended
+        }
+        mydata_recommended_games[game]=temp
+    
+    return mydata_recommended_games

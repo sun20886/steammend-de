@@ -1,5 +1,5 @@
-from flask import Flask, make_response, request, render_template
-from flask_restx import Resource, Api, reqparse, fields
+from flask import Flask, request
+from flask_restx import Resource, Api
 
 import controller
 import visualization as vs
@@ -11,18 +11,15 @@ import redis
 app = Flask(__name__)
 
 app.config['JSON_AS_ASCII'] = False
-api = Api(app, version='1.0', title='steammend-swagger',
-          description='steammend-swagger', doc='/api-docs')
+
+api = Api(app, version='1.0', title='steammend-swagger', description='steammend-swagger', doc='/api-docs')
 
 '''
 # Swagger
 http://127.0.0.1:5000/api-docs
 '''
 
-recomm_api = api.namespace('recomm', description='recomm-API')
-played_game_api = api.namespace('played', description='played-API')
-filter_game_api = api.namespace('filter', description='filter-API')
-search_game_api = api.namespace('search', description='search-API')
+steammend_api = api.namespace('api2', description='steammend-API')
 
 
 @app.route("/tospring")
@@ -59,125 +56,332 @@ def login_check(id):
         return 'no login'
 
 
-@recomm_api.route("/<int:appid>", methods=["get", "post"])
-@recomm_api.param('appid', '비슷한 게임들을 추천받으려는 기준 게임 appid')
-class Recomm(Resource):
-    '''
-    게임 추천 api 
-    http://127.0.0.1:5000/recomm/<appid>
-    '''
-
-    def get(self, appid):
-        result = controller.get_recommendations(appid)
-        result = result.to_json(orient='records')
-        result = json.dumps(result, ensure_ascii=False)
-        res = make_response(result)
-        return res
 
 
-@played_game_api.route("/<string:steamid64>", methods=["get"])
-@played_game_api.param('steamid64', "플레이한 게임 데이터를 가져오고자 하는 유저의 steam id.")
-class PlayedGames(Resource):
-    '''
-    steam user가 플레이한 게임 데이터 반환 api
-    http://127.0.0.1:5000/played/<user_steamid>
-    '''
 
-    def get(self, steamid64):
-        result = controller.get_played_games(steamid64)
-        res = make_response(result)
-        return res
+'''
+메인페이지에서 보여주는 추천 게임 리스트 api
+http://127.0.0.1:5000/api2/main-recomm
+
+    - param : id(str)
+    - return : result(dict) 최대 총 5개의 게임을 추천
+
+    {   
+        "success" : True,
+        appid(사용자가 플레이했던 게임1 id):{
+            "name": 사용자가 플레이했던 게임1 이름,
+            "recommend":
+                {
+                    "_id": 추천된 게임 id,
+                    "_score":,
+                    "categories": ,
+                    ...
+                }
+        },
+        appid(사용자가 플레이했던 게임2 id):{
+            "name": 사용자가 플레이했던 게임2 이름,
+            "recommend":
+                {
+                    "_id": 추천된 게임 id,
+                    "_score":,
+                    "categories": ,
+                    ...
+                }
+        },
+        ...
+    }
+
+    {
+        "success":False
+    }
+'''
+@steammend_api.route("/main-recomm", methods=['get', 'post'])
+class MainRecomm(Resource):
+    def get(self):
+        
+        id= str(request.form.get("id"))
+        steamid64=login_check(id)
+
+        if steamid64=="no login":
+            success=False
+            data={"success":success}
+            return data
+        else:
+            success=True
+
+        games=controller.get_top5_playtime_games(steamid64)
+        result=controller.get_main_recomm(games)
+        result['success']=success
+        
+        
+        return result
 
 
-@filter_game_api.route("/", methods=["get"])
+'''
+마이페이지에서 보여주는 추천 게임 리스트 api
+
+http://127.0.0.1:5000/api2/my-recomm
+
+    - param : id(str)
+    - return: result(dict) 최대 25개의 게임을 추천
+    {
+        "success" : True,
+        appid(사용자가 플레이했던 게임 id):{
+            "name": 사용자가 플레이했던 게임 이름,
+            "recommend_list":[
+                추천된 게임 list
+                {
+                    "_id": 추천된 게임1 id,
+                    "_score":,
+                    "categories": ,
+                    ...
+                },
+                {
+                    "_id": 추천된 게임2 id,
+                    "_score":,
+                    "categories": ,
+                    ...
+                }
+            ]
+        },
+        appid(사용자가 플레이했던 게임 id):{
+            "name": 사용자가 플레이했던 게임 이름,
+            "recommend_list":[
+                추천된 게임 list
+                {
+                    "_id": 추천된 게임1 id,
+                    "_score":,
+                    "categories": ,
+                    ...
+                },
+                {
+                    "_id": 추천된 게임2 id,
+                    "_score":,
+                    "categories": ,
+                    ...
+                }
+            ]
+        },
+        ...
+    }
+
+    {
+        "success" : False
+    }
+'''
+@steammend_api.route("/my-recomm", methods=['get', 'post'])
+class MyRecomm(Resource):
+    def get(self):
+        id= str(request.form.get("id"))
+        steamid64=login_check(id)
+
+        if steamid64=="no login":
+            success=False
+            data={"success":success}
+            return data
+        else:
+            success=True
+
+        games=controller.get_top5_playtime_games(steamid64)
+        result=controller.get_my_recomm(games)
+        result['success']=success
+
+        return result
+
+
+
+'''
+steam user가 플레이한 모든 게임 데이터 중 플레이 타임이 가장 많은 
+상위 5개의 게임 디테일을 반환하는 api
+http://127.0.0.1:5000/api2/top5 
+'''
+@steammend_api.route("/top5", methods=['get', 'post'])
+class PlayedTop5Games(Resource):
+    def get(self):
+        
+        id= str(request.form.get("id"))
+        steamid64=login_check(id)
+
+        if steamid64=="no login":
+            success=False
+            data={"success":success}
+            return data
+        else:
+            success=True
+
+        result=controller.get_top5_playtime_games(steamid64)
+        result['success']=success
+
+        return result
+
+
+
+'''
+steam user가 플레이한 모든 게임 데이터 디테일 반환 api
+http://127.0.0.1:5000/api2/played
+'''
+@steammend_api.route("/played", methods=['get', 'post'])
+class PlayedAllGames(Resource):
+    def get(self):
+
+        id= str(request.form.get("id"))
+        steamid64=login_check(id)
+
+        if steamid64=="no login":
+            success=False
+            data={"success":success}
+            return data
+        else:
+            success=True
+
+        result = controller.get_all_played_games(steamid64)
+        result['success']=success
+
+        return result
+
+
+
+'''
+전체 top seller games 반환 api
+http://127.0.0.1:5000/api2/all
+'''
+@steammend_api.route("/all", methods=['get', 'post'])
 class AllGames(Resource):
-    '''
-    전체 top seller games 반환 api
-    http://127.0.0.1:5000/filter
-    '''
-
     def get(self):
-        result = controller.get_all_games()
+        start=int(request.form.get("start"))
+        result = controller.get_all_games(start)
 
-        list = []
-        for hit in result['hits']['hits']:
-            list.append(hit["_source"])
-
-        allgames = json.dumps(list, ensure_ascii=False)
-
-        res = make_response(allgames)
-        return res
+        return result
 
 
-@filter_game_api.route("/free", methods=["get"])
+'''
+top seller games 중 무료인 게임 반환 api
+http://127.0.0.1:5000/api2/free
+    - param : start(int)
+'''
+@steammend_api.route("/free", methods=['get', 'post'])
 class FreeGames(Resource):
-    '''
-    top seller games 중 무료인 게임 반환 api
-    http://127.0.0.1:5000/filter/free
-    '''
-
     def get(self):
-        result = controller.get_free_games()
-        res = make_response(result)
-        return res
+        start=int(request.form.get("start"))
+        result = controller.get_free_games(start)
+        
+        return result
 
 
-@filter_game_api.route("/sale", methods=["get"])
+
+'''
+top seller games 중 세일중인 게임 반환 api
+http://127.0.0.1:5000/api2/sale
+    - param : start(int)
+    - return : result (dict)
+'''
+@steammend_api.route("/sale", methods=['get', 'post'])
 class SaleGames(Resource):
-    '''
-    top seller games 중 세일중인 게임 반환 api
-    http://127.0.0.1:5000/filter/sale
-    '''
-
     def get(self):
-        result = controller.get_sale_games()
-        res = make_response(result)
-        return res
+        start=int(request.form.get("start"))
+        result = controller.get_sale_games(start)
+        
+        return result
 
 
-@filter_game_api.route("/new", methods=["get"])
+
+'''
+top seller games 중 새로 출시된 게임(2022년 10월 출시된 게임) 반환 api
+http://127.0.0.1:5000/api2/new
+'''
+@steammend_api.route("/new", methods=['get', 'post'])
 class NewGames(Resource):
-    '''
-    top seller games 중 새로 출시된 게임(2022년 10월 출시된 게임) 반환 api
-    http://127.0.0.1:5000/filter/new
-    '''
-
     def get(self):
-        result = controller.get_new_games()
-        res = make_response(result)
-        return res
+        
+        start=int(request.form.get("start"))
+        result = controller.get_new_games(start)
+
+        return result
 
 
-@search_game_api.route("/", methods=["get"])
-class SearchGame(Resource):
-    '''
-    게임 이름 검색 api
-    http://127.0.0.1:5000/search/<keyword>
-    '''
 
+'''
+게임 이름 검색 api
+http://127.0.0.1:5000/api2/search
+    - param : keword(str), start(int)
+    - return : result(dict)
+    {
+        appid1:{
+            "categories":[],
+            "header_image":,
+            "is_free":,
+            ...
+        },
+        appid2:{
+            "categories":[],
+            "header_image":,
+            "is_free":,
+            ...
+        },
+        ...
+    }
+'''
+@steammend_api.route("/search", methods=['get', 'post'])
+class SearchGames(Resource):
     def get(self):
-        keyword = request.form.get("keyword")
-        result = controller.search_games_by_keyword(keyword)
-        res = make_response(result)
-        return res
+        keyword = str(request.form.get("keyword"))
+        start = int(request.form.get("start"))
+        result= controller.search_games_by_keyword(keyword, start)
+        
+        return result
 
 
-@app.route('/charts/<string:steamid64>', methods=['get', 'post'])
-def show_charts(steamid64):
-    '''
-    대시보드 시각화 api
-    http://127.0.0.1:5000/charts/76561198073180731 
-    '''
-    played_games = controller.get_played_games(steamid64)
+'''
+<<대시보드 시각화 api>>
+http://127.0.0.1:5000/api2/charts 
+    - param : id(str)
+    - return: data(dict)
 
-    total_playtime, total_count = vs.show_total_playtime_count(played_games)
-    playtime_label, playtime_data = vs.show_playtime_chart(played_games)
-    genre_label, genre_data = vs.show_genre_chart(played_games)
-    publishers = vs.show_publisher_chart(played_games)
-    wordcloud_data = vs.show_wordcloud(played_games)
+    <redis에서 steamid 받아오기를 성공했을 때>
+        {
+            "success":True
+            "total_playtime" : total_playtime, 
+            ...
+        }
+        
+    <redis에서 steamid 받아오기를 실패했을 때>
+        {
+            "success":False
+        }
+'''
+@steammend_api.route("/charts", methods=['get', 'post'])
+class ShowCharts(Resource):
+    def get(self):
+        id= str(request.form.get("id"))
+        steamid64=login_check(id)
+        
+        if steamid64=="no login":
+            success=False
+            data={"success":success}
+            return data
+        else:
+            success=True
 
-    return render_template('index.html', total_playtime=total_playtime, total_count=total_count, check="check test", playtime_label=playtime_label, playtime_data=playtime_data, genre_label=genre_label, genre_data=genre_data, publishers=publishers, wordcloud_data=wordcloud_data)
+        played_games = controller.get_all_played_games(steamid64)
 
+        total_playtime, total_count = vs.show_total_playtime_count(played_games)
+        playtime_label, playtime_data = vs.show_playtime_chart(played_games)
+        genre_label, genre_data = vs.show_genre_chart(played_games)
+        publishers = vs.show_publisher_chart(played_games)
+        wordcloud_data = vs.show_wordcloud(played_games)
+
+        data = {
+            "success":success,
+            "total_playtime" : total_playtime, 
+            "total_count" : total_count, 
+            "playtime_label":playtime_label, 
+            "playtime_data":playtime_data, 
+            "genre_label":genre_label, 
+            "genre_data":genre_data, 
+            "publishers":publishers, 
+            "wordcloud_data":wordcloud_data}
+
+        return data
 
 if __name__ == '__main__':
     app.run(debug=True)

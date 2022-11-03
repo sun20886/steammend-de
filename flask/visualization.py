@@ -1,12 +1,8 @@
 # from crypt import methods
 from itertools import count
-import controller
-from flask import Flask, render_template
 from itertools import islice
 import collections
 
-
-app = Flask(__name__)
 
 
 # 총 플레이 시간, 구매한 게임 수
@@ -20,9 +16,10 @@ def show_total_playtime_count(played_games):
 
     return str(total_playtime), str(game_count)
 
+
+
+
 # 게임별 플레이 시간
-
-
 def show_playtime_chart(played_games):
 
     game_by_time = {}
@@ -120,5 +117,3 @@ def show_wordcloud(played_games):
 
     return worddata
 
-if __name__ == '__main__':
-    app.run()
