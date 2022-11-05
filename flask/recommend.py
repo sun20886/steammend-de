@@ -1,33 +1,14 @@
 import pandas as pd
-import numpy as np
-import json
-from elasticsearch import Elasticsearch
-from pandasticsearch import Select
-
 from sklearn.metrics.pairwise import linear_kernel  # for cosine similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
-from urllib.request import urlopen
-from http.client import HTTPResponse
+
+from pandasticsearch import Select
+import json
+import dao
 
 
-es = Elasticsearch(
-    hosts=["http://127.0.0.1:9200"],
-
-)
-
-doc = {"query": {"match_all": {}}}
-
-res = es.search(index='game_list01', body=doc, size=2226)
-df = Select.from_dict(res).to_pandas()
-
-
-def get_detail_by_appid(appid):
-
-    appid = str(appid)
-    url = "https://store.steampowered.com/api/appdetails?appids="
-    HTTPResponse = urlopen(url+appid)
-    detail_data = json.load(HTTPResponse)[appid]['data']
-
+#elk에 없는 게임일 때 steamAPI로 디테일을 받아와서 데이터 프레임에 맞게 전처리
+def preprocessing_appdetail(detail_data):
     tags = set()
     for i in detail_data['categories']:
         tags.add(i['description'])
@@ -42,38 +23,17 @@ def get_detail_by_appid(appid):
         "short_description": detail_data['short_description'],
         "supported_languages": detail_data['supported_languages'],
         "header_image": detail_data['header_image'],
-        # "pc_requirements": detail_data['pc_requirements'],
-        # "mac_requirements": detail_data['mac_requirements'],
-        # "linux_requirements": detail_data['linux_requirements'],
         "publishers": detail_data['publishers'],
+        "tags": list(tags),
         "categories": detail_data['categories'],
         "genres": detail_data['genres'],
-        "release_date": detail_data['release_date'],
-        "tags": list(tags)
+        "release_date": detail_data['release_date']
     }
 
     app_detail['pc_requirements.minimum'] = detail_data['pc_requirements'][
-        'minimum'] if "minimum" in detail_data['pc_requirements'].keys() else None
+        'minimum'] if "minimum" in detail_data['pc_requirements'].keys() else []
     app_detail['pc_requirements.recommended'] = detail_data['pc_requirements'][
-        'recommended'] if "recommended" in detail_data['pc_requirements'].keys() else None
-
-    if type(detail_data['mac_requirements']) == dict:
-        app_detail['mac_requirements.minimum'] = detail_data['mac_requirements'][
-            'minimum'] if "minimum" in detail_data['mac_requirements'].keys() else None
-        app_detail['mac_requirements.recommended'] = detail_data['mac_requirements'][
-            'recommended'] if "recommended" in detail_data['mac_requirements'].keys() else None
-    else:
-        app_detail['mac_requirements.minimum'] = None
-        app_detail['mac_requirements.recommended'] = None
-
-    if type(detail_data['linux_requirements']) == dict:
-        app_detail['linux_requirements.minimum'] = detail_data['linux_requirements'][
-            'minimum'] if "minimum" in detail_data['linux_requirements'].keys() else None
-        app_detail['linux_requirements.recommended'] = detail_data['linux_requirements'][
-            'recommended'] if "recommended" in detail_data['linux_requirements'].keys() else None
-    else:
-        app_detail['linux_requirements.minimum'] = None
-        app_detail['linux_requirements.recommended'] = None
+        'recommended'] if "recommended" in detail_data['pc_requirements'].keys() else []
 
     if "price_overview" in detail_data.keys():
         app_detail['price_overview.currency'] = detail_data['price_overview'][
@@ -95,18 +55,16 @@ def get_detail_by_appid(appid):
         app_detail['price_overview.initial_formatted'] = None
         app_detail['price_overview.final_formatted'] = None
 
-        # app_detail[''] = detail_data[''][''] if "" in detail_data[''].keys() else None
-        # app_detail[''] = detail_data[''][''] if "" in detail_data[''].keys() else None
-
     app_detail['recommendations'] = detail_data['recommendations'] if "recommendations" in detail_data.keys() else None
 
     return app_detail
 
 
-def caculate_cosine(appid):
+def caculate_cosine(game, df):
+    
+    if game['steam_appid'] not in df['_id']:
+        new_app = preprocessing_appdetail(game)
 
-    if appid not in df['_id']:
-        new_app = get_detail_by_appid(appid)
 
     df.loc[len(df)] = new_app
 
@@ -127,23 +85,71 @@ def caculate_cosine(appid):
     return cosine_sim, indices
 
 
-def get_recommendations(appid):
 
-    cosine_sim, indices = caculate_cosine(appid)
+#비슷한 게임을 계산하여 반환
+def get_recommendations(game, type, df):
+    
+    cosine_sim, indices = caculate_cosine(game, df)
 
-    idx = indices[appid]
+    idx = indices[game['steam_appid']]
 
-    # Get the pairwsie similarity scores of all movies with that movie
+    # Get the pairwsie similarity scores of all games with that movie
     sim_scores = list(enumerate(cosine_sim[idx]))
 
-    # Sort the movies based on the similarity scores
+    # Sort the games based on the similarity scores
     sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
 
-    # Get the scores of the 5 most similar movies
-    sim_scores = sim_scores[1:6]
+
+    # Get the scores of the 5 most similar games
+    if type=="main":
+        sim_scores=sim_scores[1:2]
+    
+    elif type=="mydata":
+        sim_scores = sim_scores[1:6]
 
     # Get the movie indices
     appid_indices = [i[0] for i in sim_scores]
+    result=df.iloc[appid_indices, 2:]
+    result_string=result.to_json(force_ascii=False, orient = 'records')
+    result_json = json.loads(result_string)
 
-    # Return the top 10 most similar movies
-    return df.iloc[appid_indices]
+    return result_json
+
+
+#메인화면에 보여줄 추천 게임을 반환하는 함수
+def get_main_recomm(games):
+
+    df = Select.from_dict(dao.get_all_games_for_recomm()).to_pandas()
+    print(len(df['steam_appid']))
+
+    main_recommended_games={}
+
+    for game in games:
+        recommended=get_recommendations(games[game], "main", df)
+        temp={
+            "name":games[game]['name'],
+            "recommend":recommended[0]
+        }
+        main_recommended_games[game]=temp
+
+    return main_recommended_games
+
+
+
+#My Page의 My Recommend에서 보여줄 추천 게임들을 반환하는 함수
+def get_my_recomm(games):
+
+    df = Select.from_dict(dao.get_all_games_for_recomm()).to_pandas()
+
+    mydata_recommended_games={}
+
+    for game in games:
+        recommended=get_recommendations(games[game], "mydata",df)
+        temp={
+            "name":games[game]['name'],
+            "recommend_list":recommended
+        }
+        mydata_recommended_games[game]=temp
+    
+    return mydata_recommended_games
+
