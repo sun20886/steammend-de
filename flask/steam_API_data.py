@@ -1,10 +1,11 @@
 import json
 from urllib.request import urlopen
 from http.client import HTTPResponse
+import config
 
 
 # KEY = API키 입력
-KEY = "04BED6808829E729BD9E495AB1EBBD8C"
+KEY = config.STEAM_API_KEY
 
 
 def get_play_times_by_steamid(steamid64):
