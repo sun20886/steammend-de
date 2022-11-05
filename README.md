@@ -1,4 +1,5 @@
-# steammend-de
+# Final Project <steammend>
+## steammend-de Repo
 
 ### python 가상환경 세팅
 
