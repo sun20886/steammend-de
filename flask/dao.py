@@ -21,11 +21,15 @@ def get_all_games(start):
     res = es.search(index='top_seller_games_02', body=doc)
 
     allgames={}
+    # list=[]
 
     for hit in res['hits']['hits']:
+        # list.append(hit['_source'])
         temp=hit["_source"]
         allgames[temp['steam_appid']]=temp
-    
+
+    # allgames=json.dumps(list, ensure_ascii=False)
+    # allgames_result = json.loads(allgames)
     return allgames
 
 
