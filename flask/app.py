@@ -3,7 +3,6 @@ from flask_restx import Resource, Api
 import re
 import controller
 import visualization as vs
-import json
 import redis
 
 
@@ -27,7 +26,6 @@ def spring():
     return "test"
 
 
-# @app.route("/login-check/<id>", methods=['GET', 'POST'])
 def login_check(id):
     '''
     redis routing
@@ -93,10 +91,10 @@ http://127.0.0.1:5000/api2/main-recomm
         "success":False
     }
 '''
-@steammend_api.route("/main-recomm", methods=['get', 'post'])
+@steammend_api.route("/main-recomm", methods=['get'])
 class MainRecomm(Resource):
     def get(self):
-       
+
         id= str(request.args['id'])
         steamid64=login_check(id)
 
@@ -104,14 +102,10 @@ class MainRecomm(Resource):
             success=False
             data={"success":success}
             return data
-        else:
-            success=True
-        games=controller.get_top5_playtime_games(steamid64)
-        result=controller.get_main_recomm(games)
-        # for i in result:
-        #     r.append(i)
-        # result['success']=success
-        
+
+
+        top5_games, not_top5_games=controller.get_top5_playtime_games(steamid64)
+        result=controller.get_main_recomm(top5_games, not_top5_games)
         
         return result
 
@@ -168,9 +162,9 @@ http://127.0.0.1:5000/api2/my-recomm
         "success" : False
     }
 '''
-@steammend_api.route("/my-recomm", methods=['get', 'post'])
+@steammend_api.route("/my-recomm", methods=['get','post'])
 class MyRecomm(Resource):
-    def get(self):
+    def post(self):
         id= str(request.args['id'])
         steamid64=login_check(id)
 
@@ -178,12 +172,9 @@ class MyRecomm(Resource):
             success=False
             data={"success":success}
             return data
-        else:
-            success=True
 
-        games=controller.get_top5_playtime_games(steamid64)
-        result=controller.get_my_recomm(games)
-        result['success']=success
+        top5_games, not_top5_games=controller.get_top5_playtime_games(steamid64)
+        result=controller.get_my_recomm(top5_games, not_top5_games)
 
         return result
 

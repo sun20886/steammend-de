@@ -1,7 +1,6 @@
-import json
-from urllib.request import urlopen
+# from urllib.request import urlopen
+# from http.client import HTTPResponse
 import requests
-from http.client import HTTPResponse
 
 import config
 
@@ -14,7 +13,7 @@ def get_play_times_by_steamid(steamid64):
     steamid = str(steamid64)
     url = "https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=" + \
         KEY+"&steamid="+steamid+"&l=english"
-    print(url)
+    
     r = requests.get(url)
     played_games = r.json()['response']['games']
     app_list = {}
@@ -58,41 +57,46 @@ def get_all_played_games(steamid64):
 
 def get_top5_playtime_games(steamid64):
     played_games = get_play_times_by_steamid(steamid64)
+    
+    not_top5=list(played_games.keys())
 
-    sorted_list=sorted(played_games.items(), key=lambda item: item[1], reverse=True )
-    top_playtime_games={}
 
-    count_of_played_games=len(sorted_list)
+    playtime_sorted_list=sorted(played_games.items(), key=lambda item: item[1], reverse=True)
+
+
+    top5_playtime_games={}
+
+    count_of_played_games=len(playtime_sorted_list)
+
+    if count_of_played_games==0:
+        return None
 
     if count_of_played_games>=5:
-
+    
         count=0
-        while len(top_playtime_games)<5:
-            appid=sorted_list[count][0]
+        while len(top5_playtime_games)<5:
+            appid=playtime_sorted_list[count][0]
             app_detail = get_appdetail_by_appid(appid)
 
             try:
                 app_detail['playtime_forever'] = played_games[appid]
-                top_playtime_games[appid] = app_detail
+                top5_playtime_games[appid] = app_detail
+                not_top5.remove(appid)
             except:
                 pass
             
             count+=1
-                
-    
-    elif count_of_played_games==0:
-        return None
 
     else :
-        count=1
-        for i in sorted_list:
-            appid=i[0]
+
+        for playtime_data in playtime_sorted_list:
+            appid=playtime_data[0]
             app_detail = get_appdetail_by_appid(appid)
 
             try:
                 app_detail['playtime_forever'] = played_games[appid]
-                top_playtime_games[appid] = app_detail
+                top5_playtime_games[appid] = app_detail
             except:
                 pass
 
-    return top_playtime_games
+    return top5_playtime_games, not_top5

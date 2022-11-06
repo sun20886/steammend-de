@@ -5,7 +5,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from pandasticsearch import Select
 import json
 import dao
-
+import steam_API_data
 
 
 #elk에 없는 게임일 때 steamAPI로 디테일을 받아와서 데이터 프레임에 맞게 전처리
@@ -61,18 +61,18 @@ def preprocessing_appdetail(detail_data):
     return app_detail
 
 
-def caculate_cosine(game, df):
+def caculate_cosine(game, df_removed):
     
-    if game['steam_appid'] not in df['_id']:
+    if game['steam_appid'] not in df_removed['_id']:
         new_app = preprocessing_appdetail(game)
 
-    df.loc[len(df)] = new_app
+    df_removed.loc[len(df_removed)] = new_app
 
     # Define TF-IDF Vectorizer Object
     tfidf = TfidfVectorizer()
 
     # Construct the required TF-IDF matrix by fitting and transforming the data
-    tfidf_matrix = tfidf.fit_transform([str(i) for i in df['tags']])
+    tfidf_matrix = tfidf.fit_transform([str(i) for i in df_removed['tags']])
 
     # Output the shape of tfidf_matrix
     tfidf_matrix.shape
@@ -80,20 +80,22 @@ def caculate_cosine(game, df):
     # Compute the cosine similarity matrix
     cosine_sim = linear_kernel(tfidf_matrix, tfidf_matrix)
 
-    indices = pd.Series(df.index, index=df['_id']).drop_duplicates()
+    # indices = pd.Series(df_removed.index, index=df_removed['_id']).drop_duplicates()  
+    
+    indices = pd.Series(list(range(len(df_removed))), index=df_removed['_id']).drop_duplicates()  
 
     return cosine_sim, indices
 
 
 
 #비슷한 게임을 계산하여 반환
-def get_recommendations(game, type, df):
+def get_recommendations(game, type, df_removed):
     
-    cosine_sim, indices = caculate_cosine(game, df)
+    cosine_sim, indices = caculate_cosine(game, df_removed)
 
     idx = indices[game['steam_appid']]
 
-    # Get the pairwsie similarity scores of all games with that movie
+    # Get the pairwsie similarity scores of all games with that game
     sim_scores = list(enumerate(cosine_sim[idx]))
 
     # Sort the games based on the similarity scores
@@ -107,10 +109,10 @@ def get_recommendations(game, type, df):
     elif type=="mydata":
         sim_scores = sim_scores[1:6]
 
-    # Get the movie indices
+    # Get the game indices
     appid_indices = [i[0] for i in sim_scores]
 
-    result=df.iloc[appid_indices, 2:]
+    result=df_removed.iloc[appid_indices, 2:]
     result_string=result.to_json(force_ascii=False, orient = 'records')
     result_json = json.loads(result_string)
 
@@ -118,35 +120,50 @@ def get_recommendations(game, type, df):
 
 
 #메인화면에 보여줄 추천 게임을 반환하는 함수
-def get_main_recomm(games):
+def get_main_recomm(top5_games, not_top5_games):
 
     df = Select.from_dict(dao.get_all_games_for_recomm()).to_pandas()
-    print(len(df['steam_appid']))
+    
+    df_removed=remove_duplication(not_top5_games, df)
 
     main_recommended_games=[]
 
-    for game in games:
-        recommended=get_recommendations(games[game], "main", df)
+    for game in top5_games:
+        recommended=get_recommendations(top5_games[game], "main", df_removed)
         temp=recommended[0]
         main_recommended_games.append(temp)
-    print(main_recommended_games)
+
+    
     return main_recommended_games
 
 
 
 #My Page의 My Recommend에서 보여줄 추천 게임들을 반환하는 함수
-def get_my_recomm(games):
+def get_my_recomm(top5_games, not_top5_games):
 
     df = Select.from_dict(dao.get_all_games_for_recomm()).to_pandas()
+    
+    df_removed=remove_duplication(not_top5_games, df)
 
-    mydata_recommended_games={}
+    mydata_recommended_games=[]
 
-    for game in games:
-        recommended=get_recommendations(games[game], "mydata",df)
+    for game in top5_games:
+        recommended=get_recommendations(top5_games[game], "mydata",df_removed)
         temp={
-            "name":games[game]['name'],
+            "name":top5_games[game]['name'],
+            "appid":top5_games[game]['steam_appid'],
             "recommend_list":recommended
         }
-        mydata_recommended_games[game]=temp
+
+        mydata_recommended_games.append(temp)
     
     return mydata_recommended_games
+
+
+def remove_duplication(not_top5_games, df):
+
+    for id in not_top5_games:
+        if len(df[df['_id'] == str(id)]) != 0:
+            df.drop(df[df['_id'] == str(id)].index ,axis='index',inplace=True)
+    
+    return df

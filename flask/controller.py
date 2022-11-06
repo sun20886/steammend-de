@@ -3,12 +3,12 @@ import steam_API_data
 import dao 
 
 
-def get_main_recomm(games):
-    return recommend.get_main_recomm(games)
+def get_main_recomm(top5_games, not_top5_games):
+    return recommend.get_main_recomm(top5_games, not_top5_games)
 
 
-def get_my_recomm(games):
-    return recommend.get_my_recomm(games)
+def get_my_recomm(top5_games, not_top5_games):
+    return recommend.get_my_recomm(top5_games, not_top5_games)
 
 
 def get_top5_playtime_games(steamid64):
