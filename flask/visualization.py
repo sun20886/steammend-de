@@ -116,4 +116,3 @@ def show_wordcloud(played_games):
     worddata['wordarray'] = word
 
     return worddata
-

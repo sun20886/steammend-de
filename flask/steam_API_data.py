@@ -1,6 +1,8 @@
 import json
 from urllib.request import urlopen
+import requests
 from http.client import HTTPResponse
+
 import config
 
 
@@ -12,9 +14,9 @@ def get_play_times_by_steamid(steamid64):
     steamid = str(steamid64)
     url = "https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=" + \
         KEY+"&steamid="+steamid+"&l=english"
-    HTTPResponse = urlopen(url)
-    played_games = json.load(HTTPResponse)['response']['games']
-
+    print(url)
+    r = requests.get(url)
+    played_games = r.json()['response']['games']
     app_list = {}
     
     for game in played_games:
@@ -27,8 +29,8 @@ def get_appdetail_by_appid(appid):
 
     appid = str(appid)
     url = "https://store.steampowered.com/api/appdetails?appids="
-    HTTPResponse = urlopen(url+appid+"&l=english")
-    detail_data = json.load(HTTPResponse)[appid]
+    response = requests.get(url+appid+"&l=english")
+    detail_data = response.json()[appid]
 
     if detail_data['success'] == True:
         if detail_data['data']['type'] == 'game':

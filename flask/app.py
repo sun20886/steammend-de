@@ -1,6 +1,6 @@
 from flask import Flask, request
 from flask_restx import Resource, Api
-
+import re
 import controller
 import visualization as vs
 import json
@@ -27,14 +27,13 @@ def spring():
     return "test"
 
 
-@app.route("/login-check/<id>", methods=['GET', 'POST'])
+# @app.route("/login-check/<id>", methods=['GET', 'POST'])
 def login_check(id):
     '''
     redis routing
     '''
     # password는 설정
-    conn = redis.StrictRedis(
-        host='localhost', password='abcd1234', port=6379, db=0)
+    conn = redis.StrictRedis(host='localhost', password='abcd1234', port=6379, db=0)
     # 세션 존재하는 경우 판별
     # return login 상태면 steam id, 아닌 경우 no login
     if len(conn.keys()) != 0:
@@ -46,10 +45,9 @@ def login_check(id):
                 break
 
         if str(conn.hget(name=sessionId, key="sessionAttr:"+id)) != "b''":
-            steamId = str(conn.hget(name=sessionId, key="sessionAttr:"+id))
-            steamId = steamId[3:len(steamId)-2]
-
-            return steamId
+            steamId = conn.hget(name=sessionId, key="sessionAttr:"+id)
+            numbers = re.sub(r'[^0-9]', '', str(steamId))
+            return numbers
         else:
             return 'no login'
     else:
@@ -98,14 +96,9 @@ http://127.0.0.1:5000/api2/main-recomm
 @steammend_api.route("/main-recomm", methods=['get', 'post'])
 class MainRecomm(Resource):
     def get(self):
-        
-        id= str(request.args.get("id"))
-        print(id)
-        if id=="Test":
-            steamid64="76561198073180731"
-        else :
-            steamid64="no login"
-        # steamid64=login_check(id)
+       
+        id= str(request.args['id'])
+        steamid64=login_check(id)
 
         if steamid64=="no login":
             success=False
@@ -113,10 +106,11 @@ class MainRecomm(Resource):
             return data
         else:
             success=True
-
         games=controller.get_top5_playtime_games(steamid64)
         result=controller.get_main_recomm(games)
-        result['success']=success
+        # for i in result:
+        #     r.append(i)
+        # result['success']=success
         
         
         return result
@@ -177,7 +171,7 @@ http://127.0.0.1:5000/api2/my-recomm
 @steammend_api.route("/my-recomm", methods=['get', 'post'])
 class MyRecomm(Resource):
     def get(self):
-        id= str(request.args.get("id"))
+        id= str(request.args['id'])
         steamid64=login_check(id)
 
         if steamid64=="no login":
@@ -204,7 +198,7 @@ http://127.0.0.1:5000/api2/top5
 class PlayedTop5Games(Resource):
     def get(self):
         
-        id= str(request.args.get("id"))
+        id= str(request.args['id'])
         steamid64=login_check(id)
 
         if steamid64=="no login":
@@ -229,7 +223,7 @@ http://127.0.0.1:5000/api2/played
 class PlayedAllGames(Resource):
     def get(self):
 
-        id= str(request.args.get("id"))
+        id= str(request.args['id'])
         steamid64=login_check(id)
 
         if steamid64=="no login":
@@ -253,8 +247,12 @@ http://127.0.0.1:5000/api2/all
 @steammend_api.route("/all", methods=['get', 'post'])
 class AllGames(Resource):
     def get(self):
-        # start=int(request.args.get("start"))
-        start=1
+        start=int(request.args['start'])
+        result = controller.get_all_games(start)
+        return result
+
+    def post(self):
+        start=int(request.args['start'])
         result = controller.get_all_games(start)
 
         return result
@@ -268,7 +266,7 @@ http://127.0.0.1:5000/api2/free
 @steammend_api.route("/free", methods=['get', 'post'])
 class FreeGames(Resource):
     def get(self):
-        start=int(request.args.get("start"))
+        start=int(request.args['start'])
         result = controller.get_free_games(start)
         
         return result
@@ -284,7 +282,7 @@ http://127.0.0.1:5000/api2/sale
 @steammend_api.route("/sale", methods=['get', 'post'])
 class SaleGames(Resource):
     def get(self):
-        start=int(request.args.get("start"))
+        start=int(request.args['start'])
         result = controller.get_sale_games(start)
         
         return result
@@ -299,7 +297,7 @@ http://127.0.0.1:5000/api2/new
 class NewGames(Resource):
     def get(self):
         
-        start=int(request.args.get("start"))
+        start=int(request.args['start'])
         result = controller.get_new_games(start)
 
         return result
@@ -330,8 +328,8 @@ http://127.0.0.1:5000/api2/search
 @steammend_api.route("/search", methods=['get', 'post'])
 class SearchGames(Resource):
     def get(self):
-        keyword = str(request.args.get("keyword"))
-        start = int(request.args.get("start"))
+        keyword = str(request.args['keyword'])
+        start = int(request.args['start'])
         result= controller.search_games_by_keyword(keyword, start)
         
         return result
@@ -357,10 +355,10 @@ http://127.0.0.1:5000/api2/charts
 '''
 @steammend_api.route("/charts", methods=['get', 'post'])
 class ShowCharts(Resource):
-    def get(self):
-        id= str(request.args.get("id"))
-        steamid64=login_check(id)
-        
+    
+    def post(self):
+        id= str(request.args['id'])
+        steamid64=login_check(id)   
         if steamid64=="no login":
             success=False
             data={"success":success}

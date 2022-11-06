@@ -7,6 +7,7 @@ import json
 import dao
 
 
+
 #elk에 없는 게임일 때 steamAPI로 디테일을 받아와서 데이터 프레임에 맞게 전처리
 def preprocessing_appdetail(detail_data):
     tags = set()
@@ -65,7 +66,6 @@ def caculate_cosine(game, df):
     if game['steam_appid'] not in df['_id']:
         new_app = preprocessing_appdetail(game)
 
-
     df.loc[len(df)] = new_app
 
     # Define TF-IDF Vectorizer Object
@@ -109,6 +109,7 @@ def get_recommendations(game, type, df):
 
     # Get the movie indices
     appid_indices = [i[0] for i in sim_scores]
+
     result=df.iloc[appid_indices, 2:]
     result_string=result.to_json(force_ascii=False, orient = 'records')
     result_json = json.loads(result_string)
@@ -122,16 +123,13 @@ def get_main_recomm(games):
     df = Select.from_dict(dao.get_all_games_for_recomm()).to_pandas()
     print(len(df['steam_appid']))
 
-    main_recommended_games={}
+    main_recommended_games=[]
 
     for game in games:
         recommended=get_recommendations(games[game], "main", df)
-        temp={
-            "name":games[game]['name'],
-            "recommend":recommended[0]
-        }
-        main_recommended_games[game]=temp
-
+        temp=recommended[0]
+        main_recommended_games.append(temp)
+    print(main_recommended_games)
     return main_recommended_games
 
 
@@ -152,4 +150,3 @@ def get_my_recomm(games):
         mydata_recommended_games[game]=temp
     
     return mydata_recommended_games
-
