@@ -13,6 +13,10 @@ def get_play_times_by_steamid(steamid64):
         KEY+"&steamid="+steamid+"&l=english"
 
     r = requests.get(url)
+    
+    if len(r.json()['response'])==0:
+        return False
+    
     played_games = r.json()['response']['games']
     app_list = {}
 
@@ -27,30 +31,36 @@ def get_appdetail_by_appid(appid):
     appid = str(appid)
     url = "https://store.steampowered.com/api/appdetails?appids="
     response = requests.get(url+appid+"&l=english")
-    print(appid, "=================", response.json())
 
-    detail_data = response.json()[appid]
 
-    if detail_data['success'] == True:
-        if detail_data['data']['type'] == 'game':
-            return detail_data['data']
-        else:
-            return {"detail_data": "type of this app is not game"}
+    try:
+        detail_data = response.json()[appid]
+        if detail_data['success'] == True:
+            if detail_data['data']['type'] == 'game':
+                return detail_data['data']
+    except:
+        print("get_appdetail_by_appid exception", response.json())
+
+    
 
 
 def get_all_played_games(steamid64):
     played_games = get_play_times_by_steamid(steamid64)
+
     played_games_detail = {}
+
+    failed=[]
 
     if len(played_games) >= 1:
         for appid in played_games.keys():
-            app_detail = get_appdetail_by_appid(appid)
 
             try:
-                app_detail['playtime_forever'] = played_games[appid]
+                app_detail = get_appdetail_by_appid(appid)
+                app_detail['playtime_forever'] = played_games.get(appid)
                 played_games_detail[appid] = app_detail
+            
             except:
-                pass
+                print("exception", appid)
 
     return played_games_detail
 
@@ -65,37 +75,44 @@ def get_top5_playtime_games(steamid64):
 
     top5_playtime_games = {}
 
-    count_of_played_games = len(playtime_sorted_list)
+    failed=[]
 
-    if count_of_played_games == 0:
-        return None
+    count_of_played_games = len(playtime_sorted_list)
+    
 
     if count_of_played_games >= 5:
-
+        
         count = 0
-        while len(top5_playtime_games) < 5:
+        while True:
+            if len(top5_playtime_games)==5:
+                break;
+            
             appid = playtime_sorted_list[count][0]
-            app_detail = get_appdetail_by_appid(appid)
 
-            try:
-                app_detail['playtime_forever'] = played_games[appid]
+            try: 
+                app_detail = get_appdetail_by_appid(appid)
+                app_detail['playtime_forever'] = played_games.get(appid)
                 top5_playtime_games[appid] = app_detail
                 not_top5.remove(appid)
             except:
-                pass
-
-            count += 1
+                print("while exception", appid)
+                
+            count += 1  
+                
+    
+            
 
     else:
-
+        
         for playtime_data in playtime_sorted_list:
             appid = playtime_data[0]
-            app_detail = get_appdetail_by_appid(appid)
 
-            try:
-                app_detail['playtime_forever'] = played_games[appid]
+            try: 
+                app_detail = get_appdetail_by_appid(appid)  
+                app_detail['playtime_forever'] = played_games.get(appid)
                 top5_playtime_games[appid] = app_detail
             except:
-                pass
+                print("else exception", appid)
+                
 
     return top5_playtime_games, not_top5

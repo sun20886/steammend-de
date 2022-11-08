@@ -4,6 +4,7 @@ import re
 import controller
 import visualization as vs
 import redis
+import steam_API_data as sad
 
 
 # Flask 객체 생성
@@ -99,10 +100,22 @@ class MainRecomm(Resource):
         steamid64=login_check(id)
 
         if steamid64=="no login":
-            success=False
-            data={"success":success}
+            data={
+                    "is_success":False,
+                    "error_code":0,
+                    "error_description":"Login Error"
+                }
             return data
 
+        playtime_success=sad.get_play_times_by_steamid(steamid64)
+
+        if playtime_success==False:
+            data={
+                    "is_success":False,
+                    "error_code":1,
+                    "error_description":"No Playtime Data"
+                }
+            return data
 
         top5_games, not_top5_games=controller.get_top5_playtime_games(steamid64)
         result=controller.get_main_recomm(top5_games, not_top5_games)
@@ -169,8 +182,21 @@ class MyRecomm(Resource):
         steamid64=login_check(id)
 
         if steamid64=="no login":
-            success=False
-            data={"success":success}
+            data={
+                    "is_success":False,
+                    "error_code":0,
+                    "error_description":"login error"
+                }
+            return data
+
+        playtime_success=sad.get_play_times_by_steamid(steamid64)
+
+        if playtime_success==False:
+            data={
+                    "is_success":False,
+                    "error_code":1,
+                    "error_description":"No Playtime Data"
+                }
             return data
 
         top5_games, not_top5_games=controller.get_top5_playtime_games(steamid64)
@@ -193,14 +219,15 @@ class PlayedTop5Games(Resource):
         steamid64=login_check(id)
 
         if steamid64=="no login":
-            success=False
-            data={"success":success}
+            data={
+                    "is_success":False,
+                    "error_code":0,
+                    "error_description":"login error"
+                }
             return data
-        else:
-            success=True
 
         result=controller.get_top5_playtime_games(steamid64)
-        result['success']=success
+        result['is_success']=True
 
         return result
 
@@ -218,14 +245,24 @@ class PlayedAllGames(Resource):
         steamid64=login_check(id)
 
         if steamid64=="no login":
-            success=False
-            data={"success":success}
+            data={
+                    "is_success":False,
+                    "error_code":0,
+                    "error_description":"login error"
+                }
             return data
-        else:
-            success=True
 
         result = controller.get_all_played_games(steamid64)
-        result['success']=success
+
+        if result==False:
+            data={
+                    "is_success":False,
+                    "error_code":2,
+                    "error_description":"Too Many Playtime Data"
+                }
+            return data
+
+        result['is_success']=True
 
         return result
 
@@ -349,15 +386,36 @@ class ShowCharts(Resource):
     
     def post(self):
         id= str(request.args['id'])
-        steamid64=login_check(id)   
+        steamid64=login_check(id)
+
         if steamid64=="no login":
-            success=False
-            data={"success":success}
+            data={
+                    "is_success":False,
+                    "error_code":0,
+                    "error_description":"login error"
+                }
             return data
-        else:
-            success=True
+
+        playtime_success=sad.get_play_times_by_steamid(steamid64)
+
+        if playtime_success==False:
+            data={
+                    "is_success":False,
+                    "error_code":1,
+                    "error_description":"No Playtime Data"
+                }
+            return data
+
+        if len(playtime_success)>150:
+            data={
+                    "is_success":False,
+                    "error_code":2,
+                    "error_description":"Too Many Playtime Data"
+                }
+            return data
 
         played_games = controller.get_all_played_games(steamid64)
+
 
         total_playtime, total_count = vs.show_total_playtime_count(played_games)
         playtime_label, playtime_data = vs.show_playtime_chart(played_games)
@@ -366,7 +424,7 @@ class ShowCharts(Resource):
         wordcloud_data = vs.show_wordcloud(played_games)
 
         data = {
-            "success":success,
+            "is_success":True,
             "total_playtime" : total_playtime, 
             "total_count" : total_count, 
             "playtime_label":playtime_label, 

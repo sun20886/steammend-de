@@ -5,7 +5,6 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from pandasticsearch import Select
 import json
 import dao
-import steam_API_data
 
 
 # elk에 없는 게임일 때 steamAPI로 디테일을 받아와서 데이터 프레임에 맞게 전처리
@@ -78,8 +77,6 @@ def caculate_cosine(game, df_removed):
 
     # Compute the cosine similarity matrix
     cosine_sim = linear_kernel(tfidf_matrix, tfidf_matrix)
-
-    # indices = pd.Series(df_removed.index, index=df_removed['_id']).drop_duplicates()
 
     indices = pd.Series(list(range(len(df_removed))),
                         index=df_removed['_id']).drop_duplicates()
