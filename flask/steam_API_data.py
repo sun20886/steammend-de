@@ -1,5 +1,3 @@
-# from urllib.request import urlopen
-# from http.client import HTTPResponse
 import requests
 
 import config
@@ -13,11 +11,11 @@ def get_play_times_by_steamid(steamid64):
     steamid = str(steamid64)
     url = "https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=" + \
         KEY+"&steamid="+steamid+"&l=english"
-    
+
     r = requests.get(url)
     played_games = r.json()['response']['games']
     app_list = {}
-    
+
     for game in played_games:
         app_list[game['appid']] = game['playtime_forever']
 
@@ -29,13 +27,15 @@ def get_appdetail_by_appid(appid):
     appid = str(appid)
     url = "https://store.steampowered.com/api/appdetails?appids="
     response = requests.get(url+appid+"&l=english")
+    print(appid, "=================", response.json())
+
     detail_data = response.json()[appid]
 
     if detail_data['success'] == True:
         if detail_data['data']['type'] == 'game':
             return detail_data['data']
         else:
-            return {"detail_data":"type of this app is not game"}
+            return {"detail_data": "type of this app is not game"}
 
 
 def get_all_played_games(steamid64):
@@ -57,25 +57,24 @@ def get_all_played_games(steamid64):
 
 def get_top5_playtime_games(steamid64):
     played_games = get_play_times_by_steamid(steamid64)
-    
-    not_top5=list(played_games.keys())
 
+    not_top5 = list(played_games.keys())
 
-    playtime_sorted_list=sorted(played_games.items(), key=lambda item: item[1], reverse=True)
+    playtime_sorted_list = sorted(
+        played_games.items(), key=lambda item: item[1], reverse=True)
 
+    top5_playtime_games = {}
 
-    top5_playtime_games={}
+    count_of_played_games = len(playtime_sorted_list)
 
-    count_of_played_games=len(playtime_sorted_list)
-
-    if count_of_played_games==0:
+    if count_of_played_games == 0:
         return None
 
-    if count_of_played_games>=5:
-    
-        count=0
-        while len(top5_playtime_games)<5:
-            appid=playtime_sorted_list[count][0]
+    if count_of_played_games >= 5:
+
+        count = 0
+        while len(top5_playtime_games) < 5:
+            appid = playtime_sorted_list[count][0]
             app_detail = get_appdetail_by_appid(appid)
 
             try:
@@ -84,13 +83,13 @@ def get_top5_playtime_games(steamid64):
                 not_top5.remove(appid)
             except:
                 pass
-            
-            count+=1
 
-    else :
+            count += 1
+
+    else:
 
         for playtime_data in playtime_sorted_list:
-            appid=playtime_data[0]
+            appid = playtime_data[0]
             app_detail = get_appdetail_by_appid(appid)
 
             try:

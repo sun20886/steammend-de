@@ -8,7 +8,7 @@ import dao
 import steam_API_data
 
 
-#elk에 없는 게임일 때 steamAPI로 디테일을 받아와서 데이터 프레임에 맞게 전처리
+# elk에 없는 게임일 때 steamAPI로 디테일을 받아와서 데이터 프레임에 맞게 전처리
 def preprocessing_appdetail(detail_data):
     tags = set()
     for i in detail_data['categories']:
@@ -62,11 +62,10 @@ def preprocessing_appdetail(detail_data):
 
 
 def caculate_cosine(game, df_removed):
-    
+
     if game['steam_appid'] not in df_removed['_id']:
         new_app = preprocessing_appdetail(game)
-
-    df_removed.loc[len(df_removed)] = new_app
+        df_removed.loc[len(df_removed)] = new_app
 
     # Define TF-IDF Vectorizer Object
     tfidf = TfidfVectorizer()
@@ -80,17 +79,17 @@ def caculate_cosine(game, df_removed):
     # Compute the cosine similarity matrix
     cosine_sim = linear_kernel(tfidf_matrix, tfidf_matrix)
 
-    # indices = pd.Series(df_removed.index, index=df_removed['_id']).drop_duplicates()  
-    
-    indices = pd.Series(list(range(len(df_removed))), index=df_removed['_id']).drop_duplicates()  
+    # indices = pd.Series(df_removed.index, index=df_removed['_id']).drop_duplicates()
+
+    indices = pd.Series(list(range(len(df_removed))),
+                        index=df_removed['_id']).drop_duplicates()
 
     return cosine_sim, indices
 
 
-
-#비슷한 게임을 계산하여 반환
+# 비슷한 게임을 계산하여 반환
 def get_recommendations(game, type, df_removed):
-    
+
     cosine_sim, indices = caculate_cosine(game, df_removed)
 
     idx = indices[game['steam_appid']]
@@ -101,62 +100,60 @@ def get_recommendations(game, type, df_removed):
     # Sort the games based on the similarity scores
     sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
 
-
     # Get the scores of the 5 most similar games
-    if type=="main":
-        sim_scores=sim_scores[1:2]
-    
-    elif type=="mydata":
+    if type == "main":
+        sim_scores = sim_scores[1:2]
+
+    elif type == "mydata":
         sim_scores = sim_scores[1:6]
 
     # Get the game indices
     appid_indices = [i[0] for i in sim_scores]
 
-    result=df_removed.iloc[appid_indices, 2:]
-    result_string=result.to_json(force_ascii=False, orient = 'records')
+    result = df_removed.iloc[appid_indices, 2:]
+    result_string = result.to_json(force_ascii=False, orient='records')
     result_json = json.loads(result_string)
 
     return result_json
 
 
-#메인화면에 보여줄 추천 게임을 반환하는 함수
+# 메인화면에 보여줄 추천 게임을 반환하는 함수
 def get_main_recomm(top5_games, not_top5_games):
 
     df = Select.from_dict(dao.get_all_games_for_recomm()).to_pandas()
-    
-    df_removed=remove_duplication(not_top5_games, df)
 
-    main_recommended_games=[]
+    df_removed = remove_duplication(not_top5_games, df)
+
+    main_recommended_games = []
 
     for game in top5_games:
-        recommended=get_recommendations(top5_games[game], "main", df_removed)
-        temp=recommended[0]
+        recommended = get_recommendations(top5_games[game], "main", df_removed)
+        temp = recommended[0]
         main_recommended_games.append(temp)
 
-    
     return main_recommended_games
 
 
-
-#My Page의 My Recommend에서 보여줄 추천 게임들을 반환하는 함수
+# My Page의 My Recommend에서 보여줄 추천 게임들을 반환하는 함수
 def get_my_recomm(top5_games, not_top5_games):
 
     df = Select.from_dict(dao.get_all_games_for_recomm()).to_pandas()
-    
-    df_removed=remove_duplication(not_top5_games, df)
 
-    mydata_recommended_games=[]
+    df_removed = remove_duplication(not_top5_games, df)
+
+    mydata_recommended_games = []
 
     for game in top5_games:
-        recommended=get_recommendations(top5_games[game], "mydata",df_removed)
-        temp={
-            "name":top5_games[game]['name'],
-            "appid":top5_games[game]['steam_appid'],
-            "recommend_list":recommended
+        recommended = get_recommendations(
+            top5_games[game], "mydata", df_removed)
+        temp = {
+            "name": top5_games[game]['name'],
+            "appid": top5_games[game]['steam_appid'],
+            "recommend_list": recommended
         }
 
         mydata_recommended_games.append(temp)
-    
+
     return mydata_recommended_games
 
 
@@ -164,6 +161,6 @@ def remove_duplication(not_top5_games, df):
 
     for id in not_top5_games:
         if len(df[df['_id'] == str(id)]) != 0:
-            df.drop(df[df['_id'] == str(id)].index ,axis='index',inplace=True)
-    
+            df.drop(df[df['_id'] == str(id)].index, axis='index', inplace=True)
+
     return df
