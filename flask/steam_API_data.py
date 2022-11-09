@@ -1,5 +1,6 @@
 import requests
-
+import logging
+import traceback
 import config
 
 
@@ -38,8 +39,10 @@ def get_appdetail_by_appid(appid):
         if detail_data['success'] == True:
             if detail_data['data']['type'] == 'game':
                 return detail_data['data']
-    except:
-        print("get_appdetail_by_appid exception", response.json())
+    except Exception :
+        logging(Exception)
+        traceback.print_exc()
+
 
     
 
@@ -49,8 +52,6 @@ def get_all_played_games(steamid64):
 
     played_games_detail = {}
 
-    failed=[]
-
     if len(played_games) >= 1:
         for appid in played_games.keys():
 
@@ -59,8 +60,10 @@ def get_all_played_games(steamid64):
                 app_detail['playtime_forever'] = played_games.get(appid)
                 played_games_detail[appid] = app_detail
             
-            except:
-                print("exception", appid)
+            except Exception:
+                logging(Exception)
+                traceback.print_exc()
+        
 
     return played_games_detail
 
@@ -74,8 +77,6 @@ def get_top5_playtime_games(steamid64):
         played_games.items(), key=lambda item: item[1], reverse=True)
 
     top5_playtime_games = {}
-
-    failed=[]
 
     count_of_played_games = len(playtime_sorted_list)
     
@@ -94,8 +95,10 @@ def get_top5_playtime_games(steamid64):
                 app_detail['playtime_forever'] = played_games.get(appid)
                 top5_playtime_games[appid] = app_detail
                 not_top5.remove(appid)
-            except:
-                print("while exception", appid)
+            except Exception:
+                logging(Exception)
+                traceback.print_exc()
+                
                 
             count += 1  
                 
@@ -111,8 +114,9 @@ def get_top5_playtime_games(steamid64):
                 app_detail = get_appdetail_by_appid(appid)  
                 app_detail['playtime_forever'] = played_games.get(appid)
                 top5_playtime_games[appid] = app_detail
-            except:
-                print("else exception", appid)
+            except Exception:
+                logging(Exception)
+                traceback.print_exc()
                 
 
     return top5_playtime_games, not_top5
