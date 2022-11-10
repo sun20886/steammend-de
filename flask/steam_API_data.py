@@ -39,7 +39,7 @@ def get_appdetail_by_appid(appid):
             if detail_data['data']['type'] == 'game':
                 return detail_data['data']
     except:
-        print("get_appdetail_by_appid exception", response.json())
+        print("get_appdetail_by_appid exception : exception", appid)
 
     
 
@@ -60,7 +60,7 @@ def get_all_played_games(steamid64):
                 played_games_detail[appid] = app_detail
             
             except:
-                print("exception", appid)
+                print("get_all_played_games : exception", appid)
 
     return played_games_detail
 
@@ -85,7 +85,7 @@ def get_top5_playtime_games(steamid64):
         count = 0
         while True:
             if len(top5_playtime_games)==5:
-                break;
+                break
             
             appid = playtime_sorted_list[count][0]
 
@@ -95,7 +95,7 @@ def get_top5_playtime_games(steamid64):
                 top5_playtime_games[appid] = app_detail
                 not_top5.remove(appid)
             except:
-                print("while exception", appid)
+                print("count_of_played_games : exception", appid)
                 
             count += 1  
                 
@@ -112,7 +112,7 @@ def get_top5_playtime_games(steamid64):
                 app_detail['playtime_forever'] = played_games.get(appid)
                 top5_playtime_games[appid] = app_detail
             except:
-                print("else exception", appid)
+                print("count_of_played_games : exception", appid)
                 
 
     return top5_playtime_games, not_top5
